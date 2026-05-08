@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 6e3609229fbc62ecfb44302703de526a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - positiveCollectiblePrefab: {fileID: 1955247389432374870, guid: ba9d27a8d64ed679f8b77f0209362fcc, type: 3}
+  - negativeCollectiblePrefab: {fileID: 6919109635449295671, guid: 2c8411ae44ea597c49a318b4035631df, type: 3}
+  - freezeCollectiblePrefab: {fileID: 8609505039130300810, guid: 376e328789a4566598e6ca48ad21c46a, type: 3}
+  - megaCollectiblePrefab: {fileID: 822185578681697408, guid: b93584b60a92d08499af7da72203a6ef, type: 3}
+  - playerPrefab: {fileID: 8112647062302049806, guid: 51fe5b835b195b583b561bfb69ec3688, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
