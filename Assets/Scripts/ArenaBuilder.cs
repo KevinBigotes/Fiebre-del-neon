@@ -10,6 +10,23 @@ public class ArenaBuilder : MonoBehaviour
 
     private void Start()
     {
+        // CORRECCIÓN DE COLISIÓN DE SUELO:
+        // El suelo (Arena_Floor) es un cilindro 3D con un CapsuleCollider por defecto.
+        // Al escalarlo a (20, 0.2, 20), el CapsuleCollider se deforma en una esfera de radio 10.
+        // Esto hace que el jugador flote a Y = 10.5, caminando sobre un domo invisible arriba de las paredes y coleccionables.
+        GameObject floor = GameObject.Find("Arena_Floor");
+        if (floor != null)
+        {
+            Collider oldCollider = floor.GetComponent<Collider>();
+            if (oldCollider != null && oldCollider is CapsuleCollider)
+            {
+                Destroy(oldCollider);
+                BoxCollider box = floor.AddComponent<BoxCollider>();
+                box.size = new Vector3(1f, 1f, 1f); // Escalado con el transform a 20 x 0.2 x 20
+                Debug.Log("[ArenaBuilder] Suelo corregido: CapsuleCollider reemplazado por BoxCollider.");
+            }
+        }
+
         BuildArena();
     }
 
@@ -31,7 +48,7 @@ public class ArenaBuilder : MonoBehaviour
             wall.name = $"Wall_{i}";
             wall.transform.SetParent(transform);
             wall.transform.position = pos;
-            wall.transform.rotation = Quaternion.Euler(0, i * angleStep + 90f, 0);
+            wall.transform.rotation = Quaternion.Euler(0, -i * angleStep + 90f, 0);
             wall.transform.localScale = new Vector3(wallWidth, wallHeight, 0.4f);
 
             if (wallMaterial != null)

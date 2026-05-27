@@ -15,7 +15,8 @@ public class GameManager : MonoBehaviour  // <-- MonoBehaviour, NO NetworkBehavi
     public float gameDuration = 75f;
 
     private float timeRemaining;
-    private bool gameActive = false;
+    public bool isGameActive { get; private set; } = false;
+    public bool isGameOver { get; private set; } = false;
 
     private void Awake()
     {
@@ -27,6 +28,15 @@ public class GameManager : MonoBehaviour  // <-- MonoBehaviour, NO NetworkBehavi
     {
         Debug.Log("GameManager Start");
         timeRemaining = gameDuration;
+
+        // Adjuntar el componente de seguimiento de cámara a la cámara principal en tiempo de ejecución
+        Camera mainCam = Camera.main;
+        if (mainCam != null && mainCam.gameObject.GetComponent<CameraFollow>() == null)
+        {
+            mainCam.gameObject.AddComponent<CameraFollow>();
+            Debug.Log("[GameManager] Script CameraFollow añadido con éxito a la cámara.");
+        }
+
         StartCoroutine(WaitForNetworkAndSpawn());
     }
 
@@ -34,29 +44,27 @@ public class GameManager : MonoBehaviour  // <-- MonoBehaviour, NO NetworkBehavi
     {
         Debug.Log("Esperando NetworkManager...");
 
-        // Espera hasta que NetworkManager esté activo y sea host/server
-        float timeout = 10f;
-        while (timeout > 0)
+        // Si no hay NetworkManager o no hay una sesión activa, jugamos localmente de inmediato (0 segundos de espera)
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
         {
-            if (NetworkManager.Singleton != null && 
-                (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer))
-            {
-                Debug.Log("NetworkManager listo!");
-                break;
-            }
-            timeout -= 0.1f;
-            yield return new WaitForSeconds(0.1f);
-        }
-
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsHost)
-        {
-            Debug.LogError("No hay host activo. Spawneando localmente para prueba...");
+            Debug.Log("[GameManager] No hay sesión de red activa. Iniciando partida local inmediatamente...");
             SpawnPlayerLocal();
             yield break;
         }
 
-        yield return new WaitForSeconds(0.5f);
-        SpawnPlayers();
+        // Si hay una sesión activa como Servidor o Host, spawneamos a los jugadores
+        if (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer)
+        {
+            Debug.Log("[GameManager] Sesión de red activa como Servidor/Host. Spawneando jugadores en red...");
+            yield return new WaitForSeconds(0.2f);
+            SpawnPlayers();
+        }
+        else // Si es un Cliente
+        {
+            Debug.Log("[GameManager] Sesión de red activa como Cliente. Esperando a que el Servidor cree los objetos...");
+            isGameActive = true;
+            StartCoroutine(GameLoop());
+        }
     }
 
     private void SpawnPlayers()
@@ -73,15 +81,23 @@ public class GameManager : MonoBehaviour  // <-- MonoBehaviour, NO NetworkBehavi
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             Vector3 pos = new Vector3(i * 4f, 1f, 0f);
-            GameObject go = Instantiate(playerPrefab, pos, Quaternion.identity);
-            NetworkObject no = go.GetComponent<NetworkObject>();
-            if (no != null)
-                no.SpawnAsPlayerObject(client.ClientId, true);
-            Debug.Log($"Jugador {i} spawneado en {pos}");
+            if (client.PlayerObject != null)
+            {
+                client.PlayerObject.transform.position = pos;
+                Debug.Log($"Jugador {i} reubicado en {pos}");
+            }
+            else if (playerPrefab != null)
+            {
+                GameObject go = Instantiate(playerPrefab, pos, Quaternion.identity);
+                NetworkObject no = go.GetComponent<NetworkObject>();
+                if (no != null)
+                    no.SpawnAsPlayerObject(client.ClientId, true);
+                Debug.Log($"Jugador {i} spawneado en {pos}");
+            }
             i++;
         }
 
-        gameActive = true;
+        isGameActive = true;
         StartCoroutine(GameLoop());
     }
 
@@ -95,7 +111,7 @@ public class GameManager : MonoBehaviour  // <-- MonoBehaviour, NO NetworkBehavi
         }
         Debug.Log("Spawn local (sin red)");
         Instantiate(playerPrefab, new Vector3(0, 1, 0), Quaternion.identity);
-        gameActive = true;
+        isGameActive = true;
         StartCoroutine(GameLoop());
     }
 
@@ -111,19 +127,29 @@ public class GameManager : MonoBehaviour  // <-- MonoBehaviour, NO NetworkBehavi
         UIManager.Instance?.UpdateTimer(timeRemaining);
     }
 
-    gameActive = false;
+    isGameActive = false;
+    isGameOver = true;
     Debug.Log("Partida terminada");
     UIManager.Instance?.ShowEndScreen();
+
+    // Esperar 5 segundos y regresar al menú
+    yield return new WaitForSeconds(5f);
+
+    if (NetworkManager.Singleton != null)
+    {
+        NetworkManager.Singleton.Shutdown();
+    }
+    UnityEngine.SceneManagement.SceneManager.LoadScene("MenuScene");
 }
 
-private IEnumerator SpawnCollectiblesLoop()
-{
-    while (gameActive)
+    private IEnumerator SpawnCollectiblesLoop()
     {
-        SpawnRandomCollectible();
-        yield return new WaitForSeconds(2f);
+        while (isGameActive)
+        {      
+            SpawnRandomCollectible();
+            yield return new WaitForSeconds(2f);
+        }
     }
-}
 
 private void SpawnRandomCollectible()
 {

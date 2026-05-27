@@ -1,6 +1,7 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerMovement : NetworkBehaviour
 {
     public float moveSpeed = 8f;
     public bool isFrozen = false;
@@ -9,11 +10,40 @@ public class PlayerMovement : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.useGravity = true;
+            Debug.Log($"[PlayerMovement] Awake: Rigidbody encontrado. useGravity set to true. Constraints: {rb.constraints}");
+        }
+        else
+        {
+            Debug.LogError("[PlayerMovement] Awake: ¡No se encontró Rigidbody en el objeto!");
+        }
     }
+
+    private void Start()
+    {
+        Debug.Log($"[PlayerMovement] Start: Jugador creado en posición: {transform.position}");
+    }
+
+    private int logCounter = 0;
 
     private void FixedUpdate()
     {
+        if (!IsOwner) return;
+        if (GameManager.Instance != null && GameManager.Instance.isGameOver)
+        {
+            rb.linearVelocity = Vector3.zero;
+            return;
+        }
         if (isFrozen) { rb.linearVelocity = Vector3.zero; return; }
+
+        // Registrar posición periódicamente para debugear la altura
+        logCounter++;
+        if (logCounter % 60 == 0)
+        {
+            Debug.Log($"[PlayerMovement] Posición actual del jugador: {transform.position}, Velocidad: {rb.linearVelocity}");
+        }
 
         // Joystick táctil
         Vector2 joy = VirtualJoystick.Direction;
@@ -30,7 +60,7 @@ public class PlayerMovement : MonoBehaviour
             if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))  v = -1f;
         }
 
-        rb.linearVelocity = new Vector3(h, 0f, v) * moveSpeed;
+        rb.linearVelocity = new Vector3(h * moveSpeed, rb.linearVelocity.y, v * moveSpeed);
     }
 
     public void Freeze(float duration)
