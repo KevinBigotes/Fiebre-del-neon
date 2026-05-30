@@ -100,12 +100,12 @@ public class UIManager : MonoBehaviour
             var no = p.GetComponent<Unity.Netcode.NetworkObject>();
             if (no != null && no.IsSpawned)
             {
-                if (no.OwnerClientId == 0) hostScore = p.score;
-                else clientScore = p.score;
+                if (no.OwnerClientId == 0) hostScore = p.score.Value;
+                else clientScore = p.score.Value;
             }
             else
             {
-                hostScore = p.score; 
+                hostScore = p.score.Value; 
             }
         }
 
@@ -193,13 +193,13 @@ public class UIManager : MonoBehaviour
                 var no = p.GetComponent<Unity.Netcode.NetworkObject>();
                 if (no != null && no.IsSpawned)
                 {
-                    if (no.OwnerClientId == 0) hostScore = p.score;
-                    else clientScore = p.score;
+                    if (no.OwnerClientId == 0) hostScore = p.score.Value;
+                    else clientScore = p.score.Value;
                 }
                 else
                 {
                     // Partida local (sin red activada)
-                    hostScore = p.score; 
+                    hostScore = p.score.Value; 
                 }
             }
             

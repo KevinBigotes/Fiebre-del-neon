@@ -1,8 +1,9 @@
 using UnityEngine;
+using Unity.Netcode;
 
 public enum CollectibleType { Positive, Negative, Freeze, MegaPositive }
 
-public class Collectible : MonoBehaviour
+public class Collectible : NetworkBehaviour
 {
     public CollectibleType type;
     public int pointValue = 5;
@@ -21,12 +22,10 @@ public class Collectible : MonoBehaviour
         startPos = transform.position;
         Debug.Log($"[Collectible] Creado {gameObject.name} en posición: {startPos}");
 
-        // Garantizar un Rigidbody kinematic para que los triggers funcionen al mover el transform manualmente
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb == null)
         {
             rb = gameObject.AddComponent<Rigidbody>();
-            Debug.Log($"[Collectible] Rigidbody añadido a {gameObject.name}");
         }
         rb.isKinematic = true;
         rb.useGravity = false;
@@ -34,83 +33,64 @@ public class Collectible : MonoBehaviour
 
     private void Update()
     {
-        // Efecto de flotación
+        // Efecto de flotación local (solo visual)
         float y = startPos.y + Mathf.Sin(Time.time * floatSpeed) * floatHeight;
         transform.position = new Vector3(transform.position.x, y, transform.position.z);
-
-        // Rotación continua
         transform.Rotate(Vector3.up, 90f * Time.deltaTime);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log($"[Collectible] OnTriggerEnter en {gameObject.name} con: {other.gameObject.name} (en posición: {other.transform.position})");
+        // Solo el Servidor decide qué pasa con los coleccionables
+        if (!IsServer) return;
+
         PlayerScore score = other.GetComponentInParent<PlayerScore>();
         PlayerMovement movement = other.GetComponentInParent<PlayerMovement>();
 
-        if (score == null)
-        {
-            Debug.Log($"[Collectible] No se encontró PlayerScore en {other.gameObject.name}");
-            return;
-        }
+        if (score == null) return;
 
         switch (type)
         {
             case CollectibleType.Positive:
                 score.AddPoints(pointValue);
-                ShowFloatingText($"+{pointValue}", Color.yellow, other.transform.position);
+                ShowEffectsClientRpc($"+{pointValue}", Color.yellow, other.transform.position, type);
                 break;
             case CollectibleType.Negative:
                 score.AddPoints(-pointValue);
-                ShowFloatingText($"-{pointValue}", Color.red, other.transform.position);
+                ShowEffectsClientRpc($"-{pointValue}", Color.red, other.transform.position, type);
                 break;
             case CollectibleType.Freeze:
                 movement?.Freeze(freezeDuration);
-                ShowFloatingText("¡CONGELADO!", Color.cyan, other.transform.position);
+                ShowEffectsClientRpc("¡CONGELADO!", Color.cyan, other.transform.position, type);
                 break;
             case CollectibleType.MegaPositive:
                 score.AddPoints(pointValue * 3);
-                ShowFloatingText($"+{pointValue * 3}!", Color.magenta, other.transform.position);
+                ShowEffectsClientRpc($"+{pointValue * 3}!", Color.magenta, other.transform.position, type);
                 break;
         }
 
-        PlaySoundEffect(other.transform.position);
-        Destroy(gameObject);
+        GetComponent<NetworkObject>().Despawn();
     }
 
-    private void ShowFloatingText(string text, Color color, Vector3 pos)
+    [ClientRpc]
+    private void ShowEffectsClientRpc(string text, Color color, Vector3 pos, CollectibleType cType)
     {
-        // Crea texto flotante simple
+        // Crea texto flotante simple en todas las pantallas
         GameObject textObj = new GameObject("FloatingText");
         textObj.transform.position = pos + Vector3.up * 1.5f;
 
         var tm = textObj.AddComponent<TextMesh>();
         tm.text = text;
         tm.color = color;
-        tm.fontSize = 12; // Más chiquito (era 24)
+        tm.fontSize = 12;
         tm.anchor = TextAnchor.MiddleCenter;
         tm.alignment = TextAlignment.Center;
-
-        // Añadir comportamiento de animación física y desvanecimiento
         textObj.AddComponent<FloatingTextBehaviour>();
 
-        // Actualiza UI recalculando todo desde el UIManager
-        UIManager.Instance?.UpdateScores();
-    }
-
-    private void PlaySoundEffect(Vector3 position)
-    {
+        // Reproduce sonido
         AudioClip clipToPlay = customCollectSound;
-        if (clipToPlay == null)
-        {
-            // Usar sonido sintetizado en memoria si no hay audio clip cargado
-            clipToPlay = CreateProceduralSound(type);
-        }
-
-        if (clipToPlay != null)
-        {
-            AudioSource.PlayClipAtPoint(clipToPlay, position, 0.7f); // Reproducir a volumen moderado
-        }
+        if (clipToPlay == null) clipToPlay = CreateProceduralSound(cType);
+        if (clipToPlay != null) AudioSource.PlayClipAtPoint(clipToPlay, pos, 0.7f);
     }
 
     private static AudioClip CreateProceduralSound(CollectibleType type)

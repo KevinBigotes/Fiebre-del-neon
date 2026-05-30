@@ -164,11 +164,18 @@ private void SpawnRandomCollectible()
 
     if (prefab == null) return;
 
+    if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+
     // Posición aleatoria dentro de la arena
     float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
     float radius = Random.Range(1f, arenaRadius - 1.5f);
     Vector3 pos = new Vector3(Mathf.Cos(angle) * radius, 0.5f, Mathf.Sin(angle) * radius);
 
-    Instantiate(prefab, pos, Quaternion.identity);
+    GameObject go = Instantiate(prefab, pos, Quaternion.identity);
+    var no = go.GetComponent<Unity.Netcode.NetworkObject>();
+    if (no != null)
+    {
+        no.Spawn();
+    }
 }
 }
