@@ -94,9 +94,8 @@ public class Collectible : MonoBehaviour
         // Añadir comportamiento de animación física y desvanecimiento
         textObj.AddComponent<FloatingTextBehaviour>();
 
-        // Actualiza UI
-        UIManager.Instance?.UpdateScores(
-            FindObjectOfType<PlayerScore>()?.score ?? 0, 0);
+        // Actualiza UI recalculando todo desde el UIManager
+        UIManager.Instance?.UpdateScores();
     }
 
     private void PlaySoundEffect(Vector3 position)
