@@ -26,6 +26,23 @@ public class PlayerMovement : NetworkBehaviour
         Debug.Log($"[PlayerMovement] Start: Jugador creado en posición: {transform.position}");
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        Renderer rend = GetComponent<Renderer>();
+        if (rend != null)
+        {
+            if (OwnerClientId == 0)
+            {
+                rend.material.color = new Color(0f, 1f, 1f); // Cyan para Host
+            }
+            else
+            {
+                rend.material.color = new Color(1f, 0f, 1f); // Magenta para Cliente
+            }
+        }
+    }
+
     private int logCounter = 0;
 
     private void FixedUpdate()
