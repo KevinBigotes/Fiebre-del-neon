@@ -92,12 +92,22 @@ public class MainMenuUI : MonoBehaviour
             return;
         }
 
+        if (NetworkManager.Singleton.IsListening)
+        {
+            Debug.LogWarning("Ya hay una conexión activa. Apagando...");
+            NetworkManager.Singleton.Shutdown();
+            return;
+        }
+
+        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (transport != null)
+            transport.SetConnectionData("127.0.0.1", 7777, "0.0.0.0"); // 0.0.0.0 permite que otros se conecten
+
         bool started = NetworkManager.Singleton.StartHost();
 
         if (started)
         {
             Debug.Log("Host iniciado correctamente");
-            // Carga la escena de juego
             NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
         }
         else
@@ -114,14 +124,22 @@ public class MainMenuUI : MonoBehaviour
             return;
         }
 
+        if (NetworkManager.Singleton.IsListening)
+        {
+            Debug.LogWarning("Cancelando intento de conexión anterior...");
+            NetworkManager.Singleton.Shutdown();
+            return; // Requiere presionar de nuevo para reintentar
+        }
+
         string ip = "127.0.0.1";
         if (ipInputField != null && !string.IsNullOrEmpty(ipInputField.text))
-            ip = ipInputField.text;
+            ip = ipInputField.text.Trim(); // Limpiar espacios invisibles
 
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
         if (transport != null)
-            transport.SetConnectionData(ip, 7777);
+            transport.SetConnectionData(ip, 7777, "0.0.0.0");
 
+        Debug.Log($"Intentando conectar como cliente a {ip}...");
         NetworkManager.Singleton.StartClient();
     }
 }
